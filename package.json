@@ -1,0 +1,72 @@
+{
+  "name": "Hybrids4Ever",
+  "version": "1.0.0",
+  "description": "A simple CAP project.",
+  "repository": "<Add your repository here>",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@sap-cloud-sdk/http-client": "^3.2.0",
+    "@sap/hana-client": "^2.16.21",
+    "@sap/cds": "^6",
+    "@sap/xssec": "^3",
+    "express": "^4",
+    "passport": "^0"
+  },
+  "devDependencies": {
+    "sqlite3": "^5",
+    "npm-run-all": "^4.1.5"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "deploy": "npm-run-all -s build cf:deploy",
+    "build": "mbt build",
+    "cf:deploy": "cf deploy mta_archives/Hybrids4Ever_1.0.0.mtar",
+    "demo": "npm-run-all -p run:approuter run:cap",
+    "run:approuter": "cds bind --profile hybrid --exec npm run start:approuter",
+    "start:approuter": "npm run start --prefix app",
+    "run:cap": "cds-ts watch --profile hybrid"
+  },
+  "cds": {
+    "requires": {
+      "[production]": {
+        "CB_MATERIAL_SRV": {
+          "kind": "odata-v2",
+          "model": "srv/external/CB_MATERIAL_SRV",
+          "credentials": {
+            "destination": "S4",
+            "path": "/sap/opu/odata/sap/CB_MATERIAL_SRV"
+          }
+        },
+        "Northwind": {
+          "kind": "odata-v2",
+          "model": "srv/external/Northwind",
+          "credentials": {
+            "destination": "Northwind",
+            "path": "/v2/northwind/northwind.svc"
+          }
+        }
+      },
+      "auth": {
+        "kind": "xsuaa"
+      },
+      "db": {
+        "kind": "hana-cloud"
+      }
+    },
+    "build": {
+      "tasks": [
+        {
+          "for": "hana",
+          "dest": "../db"
+        },
+        {
+          "for": "node-cf"
+        }
+      ]
+    },
+    "odata": {
+      "version": "v4"
+    }
+  }
+}

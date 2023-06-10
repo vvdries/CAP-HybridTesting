@@ -1,0 +1,7 @@
+### Northwind - Orders
+GET http://Northwind.dest/v2/northwind/northwind.svc/Orders?$format=json
+Content-Type: application/json
+
+### S4 - Materials
+GET http://S4.dest/sap/opu/odata/sap/CB_MATERIAL_SRV/Materials?$format=json
+Content-Type: application/json

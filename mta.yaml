@@ -1,0 +1,99 @@
+_schema-version: '3.1'
+ID: Hybrids4Ever
+version: 1.0.0
+description: "Hybrids 4 Ever."
+parameters:
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm ci # This command is similar to npm install, except it's meant to be used in automated environments such as test platforms, continuous integration, and deployment -- or any situation where you want to make sure you're doing a clean install of your dependencies.
+        - npx -p @sap/cds-dk cds build --production
+        - npx rimraf gen/srv/srv/**/*.ts
+        - tsc
+modules:
+  - name: Hybrids4Ever-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      buildpack: nodejs_buildpack
+    build-parameters:
+      builder: npm-ci
+      ignore:
+        - "node_modules/"
+    provides:
+      - name: srv-api # required by consumers of CAP services (e.g. approuter)
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: hybrid4ever-hana-db-srv
+      - name: hybrid4ever-xsuaa-srv
+      - name: hybrid4ever-dest-srv
+      - name: hybrid4ever-conn-srv
+  - name: hybrid4ever-db-deployer-hana
+    type: hdb
+    path: db
+    parameters:
+      buildpack: nodejs_buildpack
+    requires:
+      - name: hybrid4ever-hana-db-srv
+resources:
+  - name: hybrid4ever-xsuaa-srv
+    type: org.cloudfoundry.managed-service
+    parameters:
+      path: ./xs-security.json
+      service: xsuaa
+      service-plan: application
+      service-name: hybrid4ever-xsuaa-srv
+      service-keys:
+        - name: hybrid4ever-xsuaa-srv-key
+      config:
+        xsappname: ${space}-hybrid4ever-backend
+        tenant-mode: dedicated
+  - name: hybrid4ever-hana-db-srv
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+      service-keys:
+        - name: hybrid4ever-hana-db-srv-key
+    properties:
+      hdi-service-name: ${service-name}
+  - name: hybrid4ever-dest-srv
+    type: org.cloudfoundry.managed-service
+    parameters:
+      config:
+        HTML5Runtime_enabled: true
+        init_data:
+          instance:
+            destinations:
+              - Authentication: NoAuthentication
+                Name: ui5
+                ProxyType: Internet
+                Type: HTTP
+                URL: https://ui5.sap.com
+              - Authentication: NoAuthentication
+                HTML5.ForwardAuthToken: true
+                HTML5.DynamicDestination: true
+                Name: srv-api
+                ProxyType: Internet
+                Type: HTTP
+                URL: ~{srv-api/srv-url}
+            existing_destinations_policy: update
+        version: 1.0.0
+      service: destination
+      service-name: hybrid4ever-dest-srv
+      service-plan: lite
+      service-keys:
+        - name: hybrid4ever-dest-srv-key
+    requires:
+      - name: srv-api
+  - name: hybrid4ever-conn-srv
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service-plan: lite
+      service: connectivity
+      service-name: hybrid4ever-conn-srv
+      service-keys:
+        - name: hybrid4ever-conn-srv-key
